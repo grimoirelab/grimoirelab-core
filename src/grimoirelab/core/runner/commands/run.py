@@ -35,6 +35,8 @@ from django.core.wsgi import get_wsgi_application
 from django.core import management
 
 from grimoirelab.core.scheduler.common import Q_STORAGE_ITEMS
+from rq.exceptions import NoSuchJobError
+from rq.job import Job
 
 if TYPE_CHECKING:
     from click import Context
@@ -69,6 +71,25 @@ def run(ctx: Context, cfg: str):
     _ = get_wsgi_application()
 
 
+def recover_stalled_tasks():
+    """Rerun those tasks that running with a failed job"""
+
+    from grimoirelab.core.scheduler.jobs import PercevalJob
+    from grimoirelab.core.scheduler.models import FetchTask
+
+    connection = django_rq.get_connection()
+
+    for task in FetchTask.objects.all():
+        try:
+            job = Job.fetch(task.job_id, connection=connection)
+            if not (job.is_queued or job.is_started or job.is_scheduled):
+                PercevalJob.enqueue_job(task)
+                click.echo(f"Restarting stopped task #{task.id}")
+        except NoSuchJobError:
+            PercevalJob.enqueue_job(task)
+            click.echo(f"Restarting stopped task #{task.id}")
+
+
 @run.command()
 @click.argument('queues', nargs=-1)
 def scheduler_worker(queues: list):
@@ -87,6 +108,8 @@ def scheduler_worker(queues: list):
     QUEUES: read jobs from this list; if empty, reads from all the
     defined queues in the configuration file.
     """
+
+    recover_stalled_tasks()
     try:
         management.call_command('rqworker', *queues, with_scheduler=True)
     except KeyError as e:
@@ -109,6 +132,8 @@ def workerpool(num_workers: int):
     Python path syntax (e.g. grimoirelab.core.config.settings). Take into
     account the module should be accessible by your PYTHONPATH env variable.
     """
+
+    recover_stalled_tasks()
     try:
         management.call_command('rqworker-pool', num_workers=num_workers)
     except KeyError as e:
