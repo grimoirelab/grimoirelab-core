@@ -22,7 +22,7 @@ export default createVuetify({
           'on-background': '#1f2328',
           surface: '#ffffff',
           'on-surface': '#1f2328',
-          started: '#003756',
+          started: '#f4bc00',
           scheduled: '#797B7E',
           enqueued: '#003756',
           canceled: '#f4bc00',
