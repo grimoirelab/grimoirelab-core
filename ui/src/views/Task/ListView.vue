@@ -52,12 +52,14 @@ export default {
   methods: {
     async createTask(formData) {
       try {
-        const response = await API.scheduler.create(formData)
+        const responses = await Promise.all(formData.map((task) => API.scheduler.create(task)))
+
         Object.assign(this.snackbar, {
           open: true,
           color: 'success',
-          text: response.data.message
+          text: responses.map((response) => response.data.message).join(', ')
         })
+
         this.fetchTasks(this.currentPage)
       } catch (error) {
         Object.assign(this.snackbar, {
