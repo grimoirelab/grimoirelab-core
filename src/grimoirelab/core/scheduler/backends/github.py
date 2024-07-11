@@ -36,25 +36,25 @@ class GitHub(Backend):
     @staticmethod
     def create_backend_args(task: FetchTask) -> dict[str, Any]:
         """
-        Create the arguments for the given task. This is typically
+        Create the backend arguments for the given task. This is typically
         for the first execution and does not depend on any previous
         execution.
 
         :param task: object that contains all the information for the task
-        :return: a dictionary containing the job arguments
+        :return: a dictionary containing the backend arguments
         """
-        job_args = Backend.create_backend_args(task)
+        backend_args = Backend.create_backend_args(task)
 
-        tokens = job_args['backend_args'].get('api_token')
+        tokens = backend_args.get('api_token')
         # if not tokens:
         #     tokens = list(Token.objects.filter(backend='github').values_list('token', flat=True))
         if not isinstance(tokens, list):
             tokens = [tokens]
 
-        job_args['backend_args']['api_token'] = tokens
-        job_args['backend_args']['sleep_for_rate'] = True
+        backend_args['api_token'] = tokens
+        backend_args['sleep_for_rate'] = True
 
-        return job_args
+        return backend_args
 
     @staticmethod
     def update_backend_args(summary, backend_args):
