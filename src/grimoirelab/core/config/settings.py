@@ -233,26 +233,21 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 #
 
 Q_PERCEVAL_JOBS = os.environ.get('GRIMOIRELAB_Q_PERCEVAL_JOBS', 'default')
-Q_STORAGE_ITEMS = os.environ.get('GRIMOIRELAB_Q_STORAGE_ITEMS', 'items')
-Q_EVENTS = os.environ.get('GRIMOIRELAB_Q_EVENTS', 'events')
-
-_RQ_DATABASE = {
-    'HOST': os.environ.get('GRIMOIRELAB_REDIS_HOST', '127.0.0.1'),
-    'PORT': os.environ.get('GRIMOIRELAB_REDIS_PORT', 6379),
-    'PASSWORD': os.environ.get('GRIMOIRELAB_REDIS_PASSWORD', ''),
-    'DB': os.environ.get('GRIMOIRELAB_REDIS_DB', 0),
-}
 
 RQ_QUEUES = {
-    Q_PERCEVAL_JOBS: _RQ_DATABASE,
-    Q_STORAGE_ITEMS: _RQ_DATABASE,
-    Q_EVENTS: _RQ_DATABASE,
+    Q_PERCEVAL_JOBS: {
+        'HOST': os.environ.get('GRIMOIRELAB_REDIS_HOST', '127.0.0.1'),
+        'PORT': os.environ.get('GRIMOIRELAB_REDIS_PORT', 6379),
+        'PASSWORD': os.environ.get('GRIMOIRELAB_REDIS_PASSWORD', ''),
+        'DB': os.environ.get('GRIMOIRELAB_REDIS_DB', 0),
+    }
 }
 
-RQ = {
-    'JOB_CLASS': 'grimoirelab.core.scheduler.jobs.PercevalJob'
-}
+REDIS_EVENTS_STREAM = os.environ.get('GRIMOIRELAB_REDIS_EVENTS_STREAM', 'events')
 
+REDIS_STREAM_GROUP_NAME = os.environ.get('GRIMOIRELAB_REDIS_OPENSEARCH_GROUP_NAME', '')
+
+REDIS_STREAM_MAX_LENGTH = int(os.environ.get('GRIMOIRELAB_REDIS_STREAM_MAX_LENGTH', 2*10**6))
 
 #
 # Configuration for tasks and Perceval
