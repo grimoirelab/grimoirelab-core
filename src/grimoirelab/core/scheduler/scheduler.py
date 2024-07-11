@@ -119,7 +119,7 @@ def _build_job_args(task):
 def enqueue_task(
         task: FetchTask,
         scheduled_datetime: datetime.datetime | None = None,
-        job_args: dict | None = None
+        backend_args: dict | None = None
 ) -> PercevalJob:
     """
     Create a new job for the specified Task at a specific time.
@@ -129,25 +129,26 @@ def enqueue_task(
 
     :param task: the task to enqueue
     :param scheduled_datetime: datetime at which the task will be executed
-    :param job_args: use these arguments for the job
+    :param backend_args: use these arguments for the job
     :return: Perceval job enqueued
     """
 
     if not scheduled_datetime:
         scheduled_datetime = datetime.datetime.now(datetime.timezone.utc)
 
-    if not job_args:
-        job_args = _build_job_args(task)
+    if not backend_args:
         backend = get_scheduler_backend(task.backend)
         backend_args = backend.create_backend_args(task)
-        job_args.update(backend_args)
+
+    job_args = _build_job_args(task)
+    job_args['backend_args'] = backend_args
 
     job = Job.objects.create(
         job_id=str(uuid4()),
         task=task,
         backend=task.backend,
         category=task.category,
-        backend_args=job_args,
+        backend_args=backend_args,
         queue=task.queue,
         scheduled_datetime=scheduled_datetime
     )
@@ -208,11 +209,11 @@ def on_success_callback(job: JobRQ, connection: Redis, result: Any, *args) -> No
     if task.interval > 0:
         task.status = FetchTask.Status.ENQUEUED
         backend = get_scheduler_backend(task.backend)
-        job_args = backend.update_backend_args(result.summary, dbjob.backend_args)
+        backend_args = backend.update_backend_args(result.summary, dbjob.backend_args)
         scheduled_datetime = datetime.datetime.now(
             datetime.timezone.utc
         ) + datetime.timedelta(seconds=task.interval)
-        enqueue_task(task, scheduled_datetime=scheduled_datetime, job_args=job_args)
+        enqueue_task(task, scheduled_datetime=scheduled_datetime, backend_args=backend_args)
 
 
 def on_failure_callback(job: JobRQ, connection: Redis, t: Any, value: Any, traceback: Any):
@@ -255,14 +256,14 @@ def on_failure_callback(job: JobRQ, connection: Redis, t: Any, value: Any, trace
         logger.error(f"Job #{job.id} (task: {task.id}) failed but task will be retried")
         task.status = FetchTask.Status.RECOVERY
 
-        job_args = None
+        backend_args = None
         if result and result.summary:
             backend = get_scheduler_backend(task.backend)
-            job_args = backend.recovery_params(
+            backend_args = backend.recovery_params(
                 result.summary, jobdb.backend_args
             )
 
         scheduled_datetime = datetime.datetime.now(
             datetime.timezone.utc
         ) + datetime.timedelta(seconds=settings.PERCEVAL_JOB_RETRY_INTERVAL)
-        enqueue_task(task, scheduled_datetime=scheduled_datetime, job_args=job_args)
+        enqueue_task(task, scheduled_datetime=scheduled_datetime, backend_args=backend_args)

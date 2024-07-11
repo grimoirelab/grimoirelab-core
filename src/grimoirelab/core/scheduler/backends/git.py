@@ -38,14 +38,14 @@ class Git(Backend):
     @staticmethod
     def create_backend_args(task: FetchTask) -> dict[str, Any]:
         """
-        Create the arguments for the given task. This is typically
+        Create the backend arguments for the given task. This is typically
         for the first execution and does not depend on any previous
         execution.
 
         :param task: object that contains all the information for the task
-        :return: a dictionary containing the job arguments
+        :return: a dictionary containing the backend arguments
         """
-        job_args = Backend.create_backend_args(task)
+        backend_args = Backend.create_backend_args(task)
 
         # For the first execution make some arguments mandatory
         base_path = os.path.expanduser(settings.GIT_PATH)
@@ -53,10 +53,10 @@ class Git(Backend):
         processed_uri = uri.lstrip('/')
         git_path = os.path.join(base_path, processed_uri) + '-git'
 
-        job_args['backend_args']['latest_items'] = False
-        job_args['backend_args']['gitpath'] = git_path
+        backend_args['latest_items'] = False
+        backend_args['gitpath'] = git_path
 
-        return job_args
+        return backend_args
 
     @staticmethod
     def update_backend_args(summary, backend_args):

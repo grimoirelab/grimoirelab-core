@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from cloudevents.conversion import to_json
+from django.conf import settings
 
 import perceval.backend
 import perceval.backends
@@ -170,7 +171,7 @@ class PercevalJob(JobRQ):
         be raised.
 
         :param task_id: ID of the task
-        :param qitems: Redis queue to store items
+        :param qitems: Redis stream to add items
         :param backend: Perceval backend to run
         :param category: Perceval backend category to run
         :param backend_args: parameters used to run the backend
@@ -193,7 +194,10 @@ class PercevalJob(JobRQ):
         for event in events:
             self._metadata(event)
             data = to_json(event)
-            self.connection.rpush(qitems, data)
+            message = {
+                'data': data
+            }
+            self.connection.xadd(qitems, message, maxlen=settings.REDIS_STREAM_MAX_LENGTH)
 
         return self._perceval_result
 

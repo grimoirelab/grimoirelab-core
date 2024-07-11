@@ -41,19 +41,14 @@ class Backend:
     @staticmethod
     def create_backend_args(task: FetchTask) -> dict[str, Any]:
         """
-        Create the arguments for the given task. This is typically
+        Create the backend arguments for the given task. This is typically
         for the first execution and does not depend on any previous
         execution.
 
         :param task: object that contains all the information for the task
-        :return: a dictionary containing the job arguments
+        :return: a dictionary containing the backend arguments
         """
-        job_args = {
-            'backend': task.backend,
-            'category': task.category,
-            'backend_args': copy.deepcopy(task.backend_args)
-        }
-        return job_args
+        return copy.deepcopy(task.backend_args)
 
     @staticmethod
     def update_backend_args(summary: Summary, backend_args: dict):
