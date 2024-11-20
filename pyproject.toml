@@ -51,6 +51,7 @@ grimoirelab-chronicler = {git = "https://github.com/grimoirelab/grimoirelab-chro
 fakeredis = "^2.0.0"
 httpretty = "^1.1.4"
 flake8 = ">=7.0"
+testcontainers = "^4.8.2"
 
 [build-system]
 requires = ["poetry-core"]
