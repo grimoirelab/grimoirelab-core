@@ -74,14 +74,21 @@ class EventizerJobListSerializer(serializers.ModelSerializer):
 
 class EventizerTaskSerializer(serializers.ModelSerializer):
     status = serializers.CharField(source='get_status_display')
+    last_jobs = serializers.SerializerMethodField()
 
     class Meta:
         model = EventizerTask
         fields = [
             'uuid', 'status', 'runs', 'failures', 'last_run',
             'job_interval', 'scheduled_at',
-            'datasource_type', 'datasource_category'
+            'datasource_type', 'datasource_category',
+            'last_jobs'
         ]
+
+    def get_last_jobs(self, obj):
+        job_klass = get_registered_task_model('eventizer')[1]
+        jobs = job_klass.objects.filter(task=obj).order_by('-job_num')[:10]
+        return EventizerJobSerializer(jobs, many=True).data
 
 
 class EventizerJobSerializer(serializers.ModelSerializer):
