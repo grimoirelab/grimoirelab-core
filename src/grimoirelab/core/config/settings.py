@@ -273,9 +273,8 @@ REST_FRAMEWORK = {
 # https://github.com/rq/django-rq
 #
 
-Q_PERCEVAL_JOBS = os.environ.get('GRIMOIRELAB_Q_PERCEVAL_JOBS', 'default')
-Q_STORAGE_ITEMS = os.environ.get('GRIMOIRELAB_Q_STORAGE_ITEMS', 'items')
-Q_EVENTS = os.environ.get('GRIMOIRELAB_Q_EVENTS', 'events')
+Q_EVENTIZER_JOBS = os.environ.get('GRIMOIRELAB_Q_EVENTIZER_JOBS', 'default')
+Q_ARCHIVIST_JOBS = os.environ.get('GRIMOIRELAB_Q_ARCHIVIST_JOBS', 'storage_jobs')
 
 _RQ_DATABASE = {
     'HOST': os.environ.get('GRIMOIRELAB_REDIS_HOST', '127.0.0.1'),
@@ -285,10 +284,12 @@ _RQ_DATABASE = {
 }
 
 RQ_QUEUES = {
-    Q_PERCEVAL_JOBS: _RQ_DATABASE,
-    Q_STORAGE_ITEMS: _RQ_DATABASE,
-    Q_EVENTS: _RQ_DATABASE,
+    Q_EVENTIZER_JOBS: _RQ_DATABASE,
+    Q_ARCHIVIST_JOBS: _RQ_DATABASE,
 }
+
+EVENTS_STREAM = os.environ.get('GRIMOIRELAB_EVENTS_STREAM', 'events')
+STREAM_MAX_LENGTH = int(os.environ.get('GRIMOIRELAB_STREAM_MAX_LENGTH', 2 * 10 ** 6))
 
 RQ = {
     'JOB_CLASS': 'grimoirelab.core.scheduler.jobs.GrimoireLabJob',
@@ -305,3 +306,15 @@ GRIMOIRELAB_JOB_RESULT_TTL = int(os.environ.get('GRIMOIRELAB_JOB_RESULT_TTL', 30
 GRIMOIRELAB_JOB_TIMEOUT = int(os.environ.get('GRIMOIRELAB_JOB_TIMEOUT', -1))
 
 GIT_STORAGE_PATH = os.environ.get('GRIMOIRELAB_GIT_PATH', '~/.perceval')
+
+#
+# Archivist configuration
+#
+GRIMOIRELAB_ARCHIVIST = {
+    'WORKERS': int(os.environ.get('GRIMOIRELAB_ARCHIVIST_WORKERS', 10)),
+    'STORAGE_TYPE': os.environ.get('GRIMOIRELAB_ARCHIVIST_STORAGE_TYPE', 'opensearch'),
+    'STORAGE_URL': os.environ.get('GRIMOIRELAB_ARCHIVIST_STORAGE_URL', 'https://admin:admin@localhost:9200'),
+    'STORAGE_INDEX': os.environ.get('GRIMOIRELAB_ARCHIVIST_STORAGE_INDEX', 'events'),
+    'STORAGE_VERIFY_CERT': os.environ.get('GRIMOIRELAB_ARCHIVIST_STORAGE_VERIFY_CERT', 'False').lower() in ('true', '1'),
+    'EVENTS_PER_JOB': int(os.environ.get('GRIMOIRELAB_ARCHIVIST_EVENTS_PER_JOB', 10000)),
+}

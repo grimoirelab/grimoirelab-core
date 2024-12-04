@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import typing
 
 import click
@@ -40,9 +41,13 @@ def run(ctx: Context):
               is_flag=True,
               default=False,
               help="Run the service in developer mode.")
+@click.option("--clear-tasks",
+              is_flag=True,
+              default=False,
+              help="Clear background tasks.")
 @run.command()
 @click.pass_context
-def server(ctx: Context, devel: bool):
+def server(ctx: Context, devel: bool, clear_tasks: bool):
     """Start the GrimoireLab core server.
 
     GrimoireLab server allows to schedule tasks and fetch data from
@@ -53,6 +58,8 @@ def server(ctx: Context, devel: bool):
     should be run with a reverse proxy. If you activate the '--dev' flag,
     a HTTP server will be run instead.
     """
+    create_background_tasks(clear_tasks)
+
     env = os.environ
 
     env["UWSGI_ENV"] = f"DJANGO_SETTINGS_MODULE={ctx.obj['cfg']}"
@@ -84,26 +91,91 @@ def server(ctx: Context, devel: bool):
 
 
 @run.command()
+@click.argument('task-types', nargs=-1)
 @click.option('--workers',
               default=10,
               show_default=True,
               help="Number of workers to run in the pool.")
-def eventizers(workers: int):
-    """Start a pool of eventizer workers.
+def worker_pool(task_types: str, workers: int):
+    """Start a pool of workers that run specific tasks.
 
-    The workers on the pool will run tasks to fetch data from software
-    development repositories. Data will be processed in form of events,
-    and published in the events queue.
+    If multiple tasks share the same queue, they will run in the same
+    pool of workers. The tasks to run are defined as arguments to the
+    command.
 
     The number of workers running in the pool can be defined with the
     parameter '--workers'.
+    """
+    from grimoirelab.core.scheduler.models import (get_registered_task_model,
+                                                   get_all_registered_task_names)
 
-    Workers get jobs from the Q_PERCEVAL_JOBS queue defined in the
-    configuration file.
+    available_tasks = get_all_registered_task_names()
+
+    queues = []
+    for task in task_types:
+        try:
+            Task = get_registered_task_model(task)[0]
+        except KeyError:
+            click.echo(f"Task '{task}' is not a valid task. "
+                       f"Options: {available_tasks}", err=True)
+            sys.exit(1)
+        queues.append(Task().default_job_queue)
+
+    if not queues:
+        click.echo(f"You must define at least one valid task. "
+                   f"Options: {available_tasks}", err=True)
+        sys.exit(1)
+
+    django.core.management.call_command(
+        'rqworker-pool', queues,
+        num_workers=workers
+    )
+
+
+def create_background_tasks(clear_tasks: bool):
+    """
+    Create background tasks before starting the server.
+    :param clear_tasks: clear tasks before creating new ones.
+    :return:
     """
     from django.conf import settings
 
-    django.core.management.call_command(
-        'rqworker-pool', settings.Q_PERCEVAL_JOBS,
-        num_workers=workers
-    )
+    from grimoirelab.core.scheduler.scheduler import schedule_task
+    from grimoirelab.core.scheduler.tasks.models import StorageTask
+
+    workers = settings.GRIMOIRELAB_ARCHIVIST['WORKERS']
+    storage_url = settings.GRIMOIRELAB_ARCHIVIST['STORAGE_URL']
+    storage_db_name = settings.GRIMOIRELAB_ARCHIVIST['STORAGE_INDEX']
+    storage_type = settings.GRIMOIRELAB_ARCHIVIST['STORAGE_TYPE']
+    verify_certs = settings.GRIMOIRELAB_ARCHIVIST['STORAGE_VERIFY_CERT']
+    events_per_job = settings.GRIMOIRELAB_ARCHIVIST['EVENTS_PER_JOB']
+
+    if clear_tasks:
+        StorageTask.objects.all().delete()
+        click.echo("Removing old background tasks.")
+
+    current = StorageTask.objects.filter(burst=False).count()
+    if workers == current:
+        click.echo("Tasks already created. Skipping.")
+        return
+
+    task_args = {
+        'storage_url': storage_url,
+        'storage_db_name': storage_db_name,
+        'storage_verify_certs': verify_certs,
+        'redis_group': 'archivist',
+        'limit': events_per_job
+    }
+    if workers > current:
+        for _ in range(workers - current):
+            schedule_task(
+                task_type=StorageTask.TASK_TYPE,
+                storage_type=storage_type,
+                task_args=task_args,
+                job_interval=1,
+                job_max_retries=10
+            )
+        click.echo(f"Created {workers} background tasks.")
+    elif workers < current:
+        tasks = StorageTask.objects.all()[workers:]
+        tasks.update(burst=True)

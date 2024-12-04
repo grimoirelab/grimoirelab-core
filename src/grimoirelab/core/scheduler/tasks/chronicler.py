@@ -44,6 +44,7 @@ def chronicler_job(
     datasource_type: str,
     datasource_category: str,
     events_queue: str,
+    stream_max_length: int,
     job_args: dict[str, Any] = None
 ) -> ChroniclerProgress:
     """Fetch and eventize data.
@@ -95,7 +96,11 @@ def chronicler_job(
                                                perceval_gen.items)
         for event in events:
             data = cloudevents.conversion.to_json(event)
-            rq_job.connection.rpush(events_queue, data)
+            message = {
+                'data': data
+            }
+            rq_job.connection.xadd(events_queue, message,
+                                   maxlen=stream_max_length)
     finally:
         progress.summary = perceval_gen.summary
 
