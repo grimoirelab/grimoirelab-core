@@ -54,6 +54,7 @@ class TestChroniclerJob(GrimoireLabTestCase):
             'datasource_type': 'git',
             'datasource_category': 'commit',
             'events_queue': 'events',
+            'stream_max_length': 500,
             'job_args': {
                 'uri': 'http://example.com/',
                 'gitpath': os.path.join(self.dir, 'data/git_log.txt')
@@ -91,8 +92,8 @@ class TestChroniclerJob(GrimoireLabTestCase):
                          'ce8e0b86a1e9877f42fe9453ede418519115f367')
 
         # Check generated events
-        events = self.conn.lrange('events', 0, -1)
-        events = [json.loads(e) for e in events]
+        events = self.conn.xread({'events': b'0-0'}, count=None, block=0)
+        events = [json.loads(e[1][b'data']) for e in events[0][1]]
 
         expected = [
             ('2d85a883e0ef63ebf7fa40e372aed44834092592', 'org.grimoirelab.events.git.merge'),
@@ -131,6 +132,7 @@ class TestChroniclerJob(GrimoireLabTestCase):
             'datasource_type': 'git',
             'datasource_category': 'commit',
             'events_queue': 'events',
+            'stream_max_length': 500,
             'job_args': {
                 'uri': 'http://example.com/',
                 'gitpath': os.path.join(self.dir, 'data/git_log_empty.txt')
@@ -173,6 +175,7 @@ class TestChroniclerJob(GrimoireLabTestCase):
             'datasource_type': 'nobackend',
             'datasource_category': 'unknown',
             'events_queue': 'events',
+            'stream_max_length': 500,
             'job_args': {
                 'uri': 'http://example.com/',
                 'gitpath': os.path.join(self.dir, 'data/git_log_empty.txt')
