@@ -48,6 +48,10 @@ DATABASES = {
     }
 }
 
+TEST_DATABASE_IMAGE = "mariadb:11.4"
+
+TEST_RUNNER = 'tests.runners.TestContainersRunner'
+
 
 # Configuration to pretend there is a Redis service
 # available. We need to set up the connection before
